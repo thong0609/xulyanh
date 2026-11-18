@@ -1,0 +1,17 @@
+[
+  {
+    "from": "e77d9dd60753868a29fc1a79c2de1d3a6816bb9ee3b6d69aeeb8871d2b2986fd",
+    "to": "614a4de5b179206df17c20a50098c453a4baaa61e1febd0f965e221897f0e619",
+    "reason": "Convert UnicodeEncodeError in fetch/model to failed evidence check; retain blank, never no from exception"
+  },
+  {
+    "from": "eccd1d79ddd3a24169457472fe81278093d773384b6d78f57087000f410be3b0",
+    "to": "d44069fd33eda112fa5c42b8427b74f54b7237428641458a27f0a92e9e5741a2",
+    "reason": "Defer individual network-failed groups without retry; continue other groups. No label/input changes."
+  },
+  {
+    "from": "d44069fd33eda112fa5c42b8427b74f54b7237428641458a27f0a92e9e5741a2",
+    "to": "b593847da3d8e9afa9b755ac5629137c9358b2c255f96a5096779b249a5b82eb",
+    "reason": "Expose safe 429 error code/type/retry-after; no label or request policy changes"
+  }
+]

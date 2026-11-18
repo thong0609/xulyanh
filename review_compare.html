@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đối chiếu nhãn Qwen và Luna</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#172c35;background:#f3f6f7;font-size:15px}*{box-sizing:border-box}body{margin:0}main{max-width:1450px;margin:auto;padding:28px 20px}h1{font-size:27px;margin:0 0 7px}p{color:#526771;margin:6px 0}.note{margin:14px 0 18px;padding:12px 15px;background:#fff8df;border:1px solid #f0dfab;border-radius:8px}.tabs,.toolbar,.stats,.pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tabs{margin:18px 0}.tab.active{background:#176c55;color:#fff;border-color:#176c55}.stats{margin:16px 0}.stat{background:#fff;border:1px solid #dce4e7;padding:11px 17px;border-radius:9px;min-width:120px}.stat b{display:block;font-size:22px}.toolbar{margin:14px 0}input,select,button{font:inherit;border:1px solid #c5d2d7;border-radius:7px;background:#fff;padding:9px 11px}input[type=search]{width:min(360px,100%)}button{cursor:pointer;font-weight:600}button:disabled{opacity:.45;cursor:default}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px}.card{background:#fff;border:1px solid #dce4e7;border-radius:11px;padding:13px;min-width:0}.photo{height:250px;background:#f6f8f9;border-radius:7px;display:flex;align-items:center;justify-content:center;overflow:hidden}.photo img{width:100%;height:100%;object-fit:contain}.title{font-weight:700;font-size:16px;line-height:1.45;margin:12px 0 7px}.desc{font-size:14px;line-height:1.5;color:#405761;white-space:pre-wrap}.meta{font-size:12px;color:#647985;margin-top:8px;overflow-wrap:anywhere}.source{display:inline-block;padding:4px 8px;border-radius:5px;font-weight:700;background:#e8eef5;color:#315273}.source.luna{background:#f0e9fa;color:#67469a}.label{display:inline-block;padding:5px 9px;border-radius:5px;font-weight:750;margin-top:10px;background:#edf1f3}.label.yes{background:#e0f2e8;color:#116b48}.label.no{background:#ffe7e3;color:#a62f25}.label.blank{background:#fff5da;color:#806100}.image-link{display:block;margin-top:8px;color:#236978;font-size:13px}.pager{justify-content:space-between;margin:18px 0}.empty{grid-column:1/-1;text-align:center;padding:35px;color:#607780;background:#fff;border-radius:10px}#status{min-height:22px;color:#176348}#status.error{color:#ad2929}.reason{font-size:13px;color:#53656e;margin-top:8px}@media(max-width:600px){main{padding:18px 11px}.photo{height:220px}.stat{flex:1}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Đối chiếu nhãn Qwen và Luna</h1>
+  <p id="subtitle">Đang tải dữ liệu…</p>
+  <div class="note">Hai tab là hai khoảng dòng khác nhau, không phải cùng một record để so nhãn trực tiếp. Trang chỉ đọc, không sửa các file CSV hoặc kết quả.</div>
+  <div class="tabs">
+    <button class="tab active" data-source="qwen">Qwen · dòng 1–1.000</button>
+    <button class="tab" data-source="luna">Luna · dòng 2.001–2.300</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="total">—</b>Tổng record</div>
+    <div class="stat"><b id="completed">—</b>Luna đã có kết quả</div>
+    <div class="stat"><b id="yes">—</b>YES</div>
+    <div class="stat"><b id="no">—</b>NO</div>
+    <div class="stat"><b id="blank">—</b>BLANK / chưa có</div>
+  </div>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Tìm tên entity…" aria-label="Tìm theo entity">
+    <select id="filter" aria-label="Lọc nhãn">
+      <option value="all">Tất cả nhãn</option><option value="yes">YES</option><option value="no">NO</option><option value="blank">BLANK / chưa có</option>
+    </select>
+    <select id="size" aria-label="Số dòng mỗi trang"><option value="20">20 / trang</option><option value="50">50 / trang</option></select>
+    <button id="refresh">Làm mới Luna</button>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <div id="cards" class="grid"></div>
+  <div class="pager"><span id="range"></span><div><button id="prev">← Trước</button> <span id="page"></span> <button id="next">Sau →</button></div></div>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let source='qwen', page=1, rows=[], timer, loading=false;
+function text(tag,value,className){const el=document.createElement(tag);if(value!==undefined)el.textContent=value;if(className)el.className=className;return el;}
+function labelKind(value,completed){
+ const normalized=String(value??'').trim().toLowerCase();
+ if(normalized==='yes'||normalized==='no')return normalized;
+ return 'blank';
+}
+function setStatus(value,error=false){$('status').textContent=value;$('status').className=error?'error':'';}
+function counts(){
+ const result={yes:0,no:0,blank:0};
+ for(const row of rows)result[labelKind(row.approve,row.completed)]++;
+ $('total').textContent=rows.length.toLocaleString('vi-VN');
+ $('completed').textContent=source==='luna'?rows.filter(row=>row.completed).length.toLocaleString('vi-VN'):'—';
+ for(const key of Object.keys(result))$(key).textContent=result[key].toLocaleString('vi-VN');
+}
+function card(row){
+ const article=text('article',undefined,'card');
+ const src=text('span',source==='luna'?'Nhãn Luna':'Nhãn Qwen',`source ${source}`);
+ article.append(src);
+ const box=text('div',undefined,'photo'), url=safeURL(row.image_url);
+ if(url){
+  const image=document.createElement('img');image.alt=row.entity_name||'Ảnh';image.loading='lazy';image.referrerPolicy='no-referrer';image.src=url;
+  image.addEventListener('error',()=>{image.remove();box.append(text('span','Không tải được ảnh.','meta'));});
+  box.append(image);
+ }else box.append(text('span','Không có URL ảnh hợp lệ.','meta'));
+ article.append(box);
+ article.append(text('div',row.entity_name||'(không có tên)','title'));
+ if(row.mo_ta)article.append(text('div',row.mo_ta,'desc'));
+ article.append(text('div',`Dòng CSV ${row.source_row.toLocaleString('vi-VN')}${row.leaf_label?` · ${row.leaf_label}`:''}`,'meta'));
+ const value=String(row.approve??'').trim().toLowerCase();
+ const shown=value==='yes'?'YES':value==='no'?'NO':source==='luna'&&!row.completed?'CHƯA CÓ KẾT QUẢ':'BLANK';
+ article.append(text('div',shown,`label ${labelKind(value,row.completed)}`));
+ if(source==='luna'&&row.reason)article.append(text('div',`Lý do: ${row.reason}`,'reason'));
+ if(url){const link=text('a','Mở ảnh gốc ↗','image-link');link.href=url;link.target='_blank';link.rel='noopener noreferrer';article.append(link);}
+ if(row.page_url){const pageUrl=safeURL(row.page_url);if(pageUrl){const link=text('a','Mở trang nguồn ↗','image-link');link.href=pageUrl;link.target='_blank';link.rel='noopener noreferrer';article.append(link);}}
+ return article;
+}
+function safeURL(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:null;}catch{return null;}}
+function render(){
+ counts();
+ const query=$('search').value.trim().toLocaleLowerCase(), filter=$('filter').value;
+ const matched=rows.filter(row=>(!query||String(row.entity_name||'').toLocaleLowerCase().includes(query))&&(filter==='all'||labelKind(row.approve,row.completed)===filter));
+ const size=Number($('size').value), pages=Math.max(1,Math.ceil(matched.length/size));page=Math.min(page,pages);
+ const visible=matched.slice((page-1)*size,page*size);
+ $('cards').replaceChildren(...visible.map(card));
+ if(!visible.length)$('cards').append(text('div','Không có record phù hợp.','empty'));
+ $('range').textContent=matched.length?`${(page-1)*size+1}–${Math.min(page*size,matched.length)} / ${matched.length.toLocaleString('vi-VN')} record`:'0 record';
+ $('page').textContent=`${page} / ${pages}`;$('prev').disabled=loading||page<=1;$('next').disabled=loading||page>=pages;
+ $('refresh').disabled=loading;
+}
+async function load(){
+ loading=true;render();
+ try{
+  const response=await fetch(`/api/data?source=${source}`,{cache:'no-store'});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||'Không tải được dữ liệu.');
+  rows=data.rows;$('subtitle').textContent=data.description;
+  setStatus(source==='luna'?`Đang cập nhật tự động mỗi 5 giây · ${new Date().toLocaleTimeString('vi-VN')}`:'Đã tải snapshot Qwen.');
+  render();
+ }catch(error){setStatus(error.message,true);}
+ finally{loading=false;render();}
+}
+function switchSource(next){
+ source=next;page=1;$('search').value='';$('filter').value='all';
+ document.querySelectorAll('.tab').forEach(button=>button.classList.toggle('active',button.dataset.source===source));
+ clearInterval(timer);load();
+ if(source==='luna')timer=setInterval(()=>{if(!loading)load();},5000);
+}
+document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>switchSource(button.dataset.source)));
+$('search').addEventListener('input',()=>{page=1;render();});
+$('filter').addEventListener('change',()=>{page=1;render();});
+$('size').addEventListener('change',()=>{page=1;render();});
+$('prev').addEventListener('click',()=>{page--;render();});
+$('next').addEventListener('click',()=>{page++;render();});
+$('refresh').addEventListener('click',()=>load());
+switchSource('qwen');
+</script>
+</body>
+</html>

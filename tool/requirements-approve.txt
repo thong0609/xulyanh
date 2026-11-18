@@ -1,0 +1,2 @@
+# HTTP, HTML parsing, fuzzy candidate scoring, env loading: Python standard library.
+Pillow>=10,<13

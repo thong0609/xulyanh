@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+input/
+cache/
+outputs/
+
+*.zip
+*.zip.tmp
+kaggle/package_manifest.json

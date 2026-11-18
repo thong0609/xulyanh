@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đối chiếu ảnh CSV</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#172c35;background:#f3f6f7;font-size:15px}*{box-sizing:border-box}body{margin:0}main{max-width:1450px;margin:auto;padding:32px 24px}header{display:flex;justify-content:space-between;gap:16px;align-items:center}h1{font-size:28px;margin:0 0 8px}p{color:#526771;margin:6px 0}.tag{background:#e0eee9;color:#176348;border-radius:30px;padding:9px 14px;white-space:nowrap}.stats{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.stat{background:white;border:1px solid #dce4e7;padding:14px 22px;border-radius:10px;min-width:145px}.stat b{display:block;font-size:25px;margin-bottom:3px}.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}input,select,button{font:inherit;border:1px solid #c5d2d7;border-radius:7px;background:white;padding:10px 12px}input{width:min(420px,100%)}button{cursor:pointer;font-weight:600}button:hover{filter:brightness(.95)}button:disabled{opacity:.45;cursor:wait}.table-wrap{overflow:auto;background:white;border:1px solid #dce4e7;border-radius:12px}table{border-collapse:collapse;width:100%;table-layout:fixed;min-width:760px}th{text-align:left;background:#eaf0f2;font-size:13px;padding:14px 18px}td{padding:20px 18px;border-top:1px solid #e3eaed;vertical-align:top;overflow-wrap:anywhere}.name{font-weight:650;font-size:17px;line-height:1.55}.description{margin-top:10px;font-size:15px;line-height:1.6;color:#405761;white-space:pre-wrap}.meta{font-size:12px;color:#647985;margin-top:8px}.photo{position:relative;display:flex;align-items:center;justify-content:center;background:#f6f8f9;min-height:90px;border-radius:7px}.photo img{display:block;width:100%;max-width:100%;height:360px;object-fit:contain}.link{display:inline-block;color:#236978;font-size:13px;margin-top:8px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.yes{background:#177353;color:white;border-color:#177353}.no{background:#fff1ef;color:#b13429;border-color:#eec3bd}.badge{display:inline-block;padding:5px 9px;background:#edf1f3;border-radius:5px;font-weight:650}.badge.yes{background:#e0f2e8;color:#116b48}.badge.no{background:#ffe7e3;color:#a62f25}.reset{font-size:12px;margin-top:12px;padding:6px 9px;color:#50656e}.pager{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:18px}.pager div{display:flex;align-items:center;gap:12px}#message{min-height:25px;margin-bottom:12px;color:#176348}#message.error{color:#ad2929}.empty{text-align:center;padding:50px;color:#607780}@media(max-width:650px){main{padding:20px 12px}header{display:block}.tag{display:inline-block;margin-top:10px}.stat{min-width:125px;flex:1}.pager{flex-wrap:wrap}.photo img{height:280px}}
+.source-link{position:absolute;top:10px;right:10px;max-width:calc(100% - 20px);overflow-wrap:anywhere;background:rgba(255,255,255,.95);color:#236978;padding:6px 8px;z-index:1;border-radius:4px;text-decoration:underline;font-size:13px}.source-link:hover{background:#eaf0f2}
+input[type="checkbox"]{width:18px;height:18px;cursor:pointer}.selection{display:flex;align-items:center;gap:8px;margin-bottom:12px}.bulk{position:fixed;bottom:0;left:0;right:0;z-index:10;background:#fff;padding:12px max(16px,calc((100vw - 1402px)/2));padding-bottom:calc(12px + env(safe-area-inset-bottom));margin:0;border-top:1px solid #c5d2d7;box-shadow:0 -3px 14px #0001;max-height:50dvh;overflow-y:auto}main{padding-bottom:calc(var(--bulk-height,200px) + 24px)}.bulk .selection{margin:0}tr.selected{background:#eef8f3}
+</style>
+</head>
+<body><main>
+<header><div><h1>Đối chiếu ảnh CSV</h1><p id="filename">Đang đọc dữ liệu…</p></div><span class="tag">Lưu trực tiếp vào cột approve</span></header>
+<div class="stats"><div class="stat"><b id="total">—</b>Tổng số ảnh</div><div class="stat"><b id="pending">—</b>Chưa duyệt</div><div class="stat"><b id="yes">—</b>Đã duyệt · yes</div><div class="stat"><b id="no">—</b>Từ chối · no</div></div>
+<div class="toolbar"><input id="search" type="search" placeholder="Tìm theo entity_name…" aria-label="Tìm entity_name"><input id="category" type="search" list="categories" placeholder="Lọc danh mục: mầm non, chợ…" aria-label="Lọc theo danh mục leaf_label"><datalist id="categories"></datalist><select id="filter" aria-label="Lọc trạng thái"><option value="all">Tất cả trạng thái</option><option value="pending">Chưa duyệt</option><option value="yes">Đã duyệt · yes</option><option value="no">Từ chối · no</option></select><select id="size" aria-label="Số dòng mỗi trang"><option value="20">20 dòng / trang</option><option value="50">50 dòng / trang</option><option value="100">100 dòng / trang</option></select></div>
+<div class="toolbar bulk"><label class="selection"><input type="checkbox" id="select-page">Chọn cả trang</label><span id="selected-count" role="status">Đã chọn 0 dòng</span><button id="apply" class="yes" disabled>Approve trang này</button><button id="back-to-top" type="button">↑ Lên đầu trang</button><button id="clear-selection" disabled>Bỏ chọn trang này</button><span class="meta">Trang hiện tại: tích = Approve (yes), không tích = Reject (no).</span></div>
+<div id="message" role="status" aria-live="polite"></div>
+<div class="table-wrap"><table><colgroup><col style="width:27%"><col style="width:50%"><col style="width:23%"></colgroup><thead><tr><th>entity_name</th><th>image</th><th>approve / Thao tác</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="pager"><span id="result"></span><div><button id="prev">← Trước</button><span id="page">—</span><button id="next">Sau →</button></div></div>
+<p class="meta">Approve ghi “yes”, Reject ghi “no”. Chỉ báo lưu thành công khi CSV đã được ghi xuống ổ đĩa. Ảnh được tải từ URL gốc trong CSV.</p>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const bulkBar=document.querySelector('.bulk');
+new ResizeObserver(()=>document.documentElement.style.setProperty('--bulk-height',`${bulkBar.getBoundingClientRect().height}px`)).observe(bulkBar);
+const selected=new Set();
+let visibleIndices=[];
+let page=1,pages=1,busy=false,loading=false,request=0,timer;
+function message(text,error=false){$('message').textContent=text;$('message').className=error?'error':'';}
+function controls(){document.querySelectorAll('main button,main input,main select').forEach(el=>el.disabled=busy);$('prev').disabled=busy||loading||page<=1;$('next').disabled=busy||loading||page>=pages;selectionControls();}
+function selectionControls(){
+ const selectedHere=visibleIndices.filter(index=>selected.has(index)).length;
+ $('selected-count').textContent=`Trang này: ${selectedHere} Approve · ${visibleIndices.length-selectedHere} Reject`;
+ $('apply').disabled=busy||loading||!visibleIndices.length;$('clear-selection').disabled=busy||loading||!selectedHere;
+ const count=visibleIndices.filter(index=>selected.has(index)).length;
+ $('select-page').checked=!!visibleIndices.length&&count===visibleIndices.length;
+ $('select-page').indeterminate=count>0&&count<visibleIndices.length;
+ $('select-page').disabled=busy||loading||!visibleIndices.length;
+ document.querySelectorAll('.row-select').forEach(input=>{input.checked=selected.has(Number(input.dataset.index));input.disabled=busy||loading;input.closest('tr').classList.toggle('selected',input.checked);});
+}
+function node(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
+function safeURL(value){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)?url.href:null;}catch{return null;}}
+async function api(url,options){const response=await fetch(url,options);let data;try{data=await response.json();}catch{throw new Error('Server không phản hồi JSON. Kiểm tra server Python.');}if(!response.ok)throw new Error(data.error||'Yêu cầu thất bại.');return data;}
+function draw(row){
+ const tr=node('tr'),name=node('td'),photo=node('td'),action=node('td');
+ name.append(node('div',row.entity_name,'name'));
+ if(row.mo_ta)name.append(node('div',row.mo_ta,'description'));
+ name.append(node('div',`Dòng dữ liệu ${row._index+1}`,'meta'));
+ if(row.leaf_label)name.append(node('div',row.leaf_label,'meta'));
+ const url=safeURL(row.image_url),box=node('div',undefined,'photo');
+ const sourceURL=safeURL(row.page_url)||url;
+ if(url){
+  const img=node('img');img.alt=row.entity_name;img.loading='lazy';img.referrerPolicy='no-referrer';img.src=url;
+  img.addEventListener('error',()=>{img.remove();box.prepend(node('span','Không tải được ảnh. Hãy thử mở ảnh gốc.','meta'));});box.append(img);
+ }else box.append(node('p','URL ảnh trống hoặc không hợp lệ.'));
+ if(sourceURL){const source=node('a',sourceURL,'source-link');source.href=sourceURL;source.target='_blank';source.rel='noopener noreferrer';box.append(source);}
+ photo.append(box);
+ if(url){const a=node('a','Mở ảnh gốc ↗','link');a.href=url;a.target='_blank';a.rel='noopener noreferrer';photo.append(a);}
+ const label=node('label',undefined,'selection'),check=node('input',undefined,'row-select');check.type='checkbox';check.dataset.index=row._index;check.checked=selected.has(row._index);check.setAttribute('aria-label',`Chọn ${row.entity_name}`);
+ check.addEventListener('change',()=>{if(check.checked)selected.add(row._index);else selected.delete(row._index);selectionControls();});label.append(check,document.createTextNode('Chọn dòng này'));action.append(label);
+ const actions=node('div',undefined,'actions');
+ for(const [label,value,cls] of [['Approve','yes','yes'],['Reject','no','no']]){const b=node('button',label,cls);b.addEventListener('click',()=>save(row._index,value));actions.append(b);}
+ const value=(row.approve||'').trim().toLowerCase();action.append(actions,node('span',value==='yes'?'yes · Đã duyệt':value==='no'?'no · Từ chối':row.approve||'Chưa duyệt',`badge ${value==='yes'||value==='no'?value:''}`));
+ if(row.approve){action.append(node('br'));const reset=node('button','Bỏ đánh dấu','reset');reset.addEventListener('click',()=>save(row._index,''));action.append(reset);}
+ tr.append(name,photo,action);return tr;
+}
+async function load(){
+ const id=++request;loading=true;controls();
+ try{const params=new URLSearchParams({page,size:$('size').value,status:$('filter').value,q:$('search').value,category:$('category').value});const data=await api('/api/rows?'+params);if(id!==request)return;
+ page=data.page;pages=data.pages;$('filename').textContent=data.file;
+ if(!$('categories').children.length){$('categories').replaceChildren(...data.categories.map(category=>{const option=node('option');option.value=category.name;option.label=`${category.name} (${category.count.toLocaleString('vi-VN')} dòng)`;return option;}));}
+ $('total').textContent=data.total.toLocaleString('vi-VN');for(const key of ['yes','no','pending'])$(key).textContent=data.counts[key].toLocaleString('vi-VN');
+ visibleIndices=data.rows.map(row=>row._index);
+ $('rows').replaceChildren(...data.rows.map(draw));if(!data.rows.length){const tr=node('tr'),td=node('td','Không có dữ liệu phù hợp.','empty');td.colSpan=3;tr.append(td);$('rows').append(tr);}
+ $('result').textContent=`${data.matched.toLocaleString('vi-VN')} dòng phù hợp`;$('page').textContent=`${page} / ${pages}`;
+ }catch(e){if(id===request)message(e.message,true);throw e;}finally{if(id===request){loading=false;controls();}}
+}
+async function save(index,value){if(busy)return;clearTimeout(timer);++request;busy=true;controls();message('Đang ghi CSV…');let saved=false;
+ try{await api('/api/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index,approve:value})});saved=true;await load();message(`Đã lưu dòng ${index+1}: approve = ${value||'(trống)'}.`);}catch(e){message((saved?'CSV đã lưu, nhưng tải lại giao diện thất bại: ':'Chưa lưu: ')+e.message,true);}finally{busy=false;controls();}}
+$('select-page').addEventListener('change',()=>{for(const index of visibleIndices){if($('select-page').checked)selected.add(index);else selected.delete(index);}selectionControls();});
+$('clear-selection').addEventListener('click',()=>{for(const index of visibleIndices)selected.delete(index);selectionControls();});
+$('back-to-top').addEventListener('click',()=>window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
+$('apply').addEventListener('click',async()=>{
+ if(busy||loading||!visibleIndices.length)return;
+ const indices=[...visibleIndices],approved=indices.filter(index=>selected.has(index));
+ clearTimeout(timer);++request;busy=true;controls();message(`Đang ghi trang này: ${approved.length} Approve, ${indices.length-approved.length} Reject…`);let saved=false;
+ try{await api('/api/approve-page',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({indices,selected:approved})});saved=true;for(const index of indices)selected.delete(index);await load();message(`Đã lưu trang: ${approved.length} ảnh Approve (yes), ${indices.length-approved.length} ảnh Reject (no).`);}
+ catch(e){message((saved?'CSV đã lưu, nhưng tải lại giao diện thất bại: ':'Chưa lưu, lựa chọn được giữ lại: ')+e.message,true);}
+ finally{busy=false;controls();}
+});
+for(const id of ['search','category'])$(id).addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{page=1;load().catch(()=>{});},300);});
+for(const id of ['filter','size'])$(id).addEventListener('change',()=>{clearTimeout(timer);page=1;load().catch(()=>{});});
+$('prev').addEventListener('click',()=>{page--;load().catch(()=>{});});$('next').addEventListener('click',()=>{page++;load().catch(()=>{});});
+if(location.protocol==='file:')message('Hãy chạy python3 review_server.py rồi mở http://127.0.0.1:8000 để lưu CSV.',true);else load().catch(()=>{});
+</script></body></html>

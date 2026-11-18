@@ -1,0 +1,4 @@
+# Keep Kaggle's matching CUDA torch + torchvision installation.
+transformers==4.57.1
+accelerate==1.10.1
+Pillow>=10,<13
